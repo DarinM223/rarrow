@@ -5,8 +5,9 @@ authors = ["Darin Minamoto <darinm223@gmail.com>"]
 edition = "2018"
 description = "Another category theory library in Rust"
 readme = "README.md"
-license = "BSD"
-keywords = ["category theory", "higher kinded types", "higher ranked polymorphism", "functional programming"]
+license = "BSD-3-Clause"
+keywords = ["category", "theory", "higher", "kinded", "functional"]
+repository = "https://github.com/DarinM223/rarrow"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
