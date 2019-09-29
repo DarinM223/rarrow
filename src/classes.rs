@@ -37,6 +37,10 @@ pub trait Foldable: Unplug + Plug<<Self as Unplug>::A> {
     fn fold_left<B, F>(self, init: B, f: F) -> B
     where
         F: FnOnce(B, <Self as Unplug>::A) -> B;
+
+    fn fold_right<B, F>(self, init: B, f: F) -> B
+    where
+        F: FnOnce(<Self as Unplug>::A, B) -> B;
 }
 
 pub trait Traverse: Functor + Foldable {
@@ -61,7 +65,7 @@ pub trait Contravariant: Unplug + Plug<<Self as Unplug>::A> {
 
 pub trait Alternative: Applicative {
     fn empty() -> Self;
-    fn combine(self, other: Self) -> Self;
+    fn combine_k(self, other: Self) -> Self;
 }
 
 pub trait Bifunctor: Unplug2 + Plug2<<Self as Unplug2>::A, <Self as Unplug2>::B> {

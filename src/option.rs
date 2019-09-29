@@ -1,5 +1,6 @@
-use crate::classes::{Applicative, Apply, Foldable, Functor, Monad, Monoid, Semigroup};
+use crate::classes::*;
 use crate::plug::{Plug, Unplug};
+use std::fmt::Debug;
 
 impl<A> Unplug for Option<A> {
     type F = Option<A>;
@@ -63,6 +64,30 @@ impl<A> Foldable for Option<A> {
             None => init,
         }
     }
+
+    fn fold_right<B, F: FnOnce(A, B) -> B>(self, init: B, f: F) -> B {
+        self.fold_left(init, |b, a| f(a, b))
+    }
+}
+
+impl<A: Debug> Show for Option<A> {
+    fn show(a: Option<A>) -> String {
+        format!("{:?}", a)
+    }
+}
+
+impl<A> Alternative for Option<A> {
+    fn empty() -> Self {
+        None
+    }
+
+    fn combine_k(self, other: Self) -> Self {
+        match (self, other) {
+            (Some(a), Some(_)) => Some(a),
+            (a, None) => a,
+            (None, b) => b,
+        }
+    }
 }
 
 // This doesn't work... It can't infer that Option<B> == <Option<A> as Plug<B>>::Out.
@@ -113,5 +138,26 @@ mod tests {
         assert_eq!(Some(2).bind(|a: i32| a.checked_add(1)), Some(3));
         assert_eq!(None.bind(|a: i32| a.checked_add(1)), None);
         assert_eq!(Some(2).bind(|_| None::<i32>), None);
+    }
+
+    #[test]
+    fn test_fold() {
+        assert_eq!(
+            Some(2).fold_left("a".to_owned(), |acc, n| format!("{}{}", acc, n)),
+            "a2".to_owned()
+        );
+        assert_eq!(
+            Some(2).fold_right("a".to_owned(), |n, acc| format!("{}{}", acc, n)),
+            "a2".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_alternative() {
+        assert_eq!(Option::<i32>::empty(), None);
+        assert_eq!(Some(2).combine_k(Some(3)), Some(2));
+        assert_eq!(None.combine_k(Some(3)), Some(3));
+        assert_eq!(Some(2).combine_k(None), Some(2));
+        assert_eq!(None::<i32>.combine_k(None), None);
     }
 }
