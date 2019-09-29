@@ -43,8 +43,9 @@ pub trait Traverse: Functor + Foldable {
     fn traverse<F, M, B>(self, f: F) -> <M as Plug<<Self as Plug<B>>::Out>>::Out
     where
         Self: Plug<B>,
-        M: Plug<<Self as Plug<B>>::Out> + Plug<B> + Applicative,
-        F: FnOnce(<Self as Unplug>::A) -> <M as Plug<B>>::Out;
+        M: Unplug<A = B> + Plug<<Self as Plug<B>>::Out>,
+        <M as Plug<<Self as Plug<B>>::Out>>::Out: Applicative,
+        F: FnOnce(<Self as Unplug>::A) -> M;
 }
 
 pub trait Show {
