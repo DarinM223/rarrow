@@ -4,14 +4,14 @@ pub trait Functor: Unplug + Plug<<Self as Unplug>::A> {
     fn fmap<B, F>(self, f: F) -> <Self as Plug<B>>::Out
     where
         Self: Plug<B>,
-        F: FnOnce(<Self as Unplug>::A) -> B;
+        F: FnMut(<Self as Unplug>::A) -> B;
 }
 
 pub trait Apply: Functor {
     fn ap<B, F>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out
     where
         Self: Plug<B> + Plug<F>,
-        F: FnOnce(<Self as Unplug>::A) -> B;
+        F: Fn(<Self as Unplug>::A) -> B;
 }
 
 pub trait Applicative: Apply {
@@ -22,7 +22,7 @@ pub trait Monad: Applicative {
     fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
     where
         Self: Plug<B>,
-        F: FnOnce(<Self as Unplug>::A) -> <Self as Plug<B>>::Out;
+        F: FnMut(<Self as Unplug>::A) -> <Self as Plug<B>>::Out;
 }
 
 pub trait Semigroup {
@@ -36,11 +36,11 @@ pub trait Monoid: Semigroup {
 pub trait Foldable: Unplug + Plug<<Self as Unplug>::A> {
     fn fold_left<B, F>(self, init: B, f: F) -> B
     where
-        F: FnOnce(B, <Self as Unplug>::A) -> B;
+        F: FnMut(B, <Self as Unplug>::A) -> B;
 
     fn fold_right<B, F>(self, init: B, f: F) -> B
     where
-        F: FnOnce(<Self as Unplug>::A, B) -> B;
+        F: FnMut(<Self as Unplug>::A, B) -> B;
 }
 
 pub trait Traverse: Functor + Foldable {

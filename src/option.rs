@@ -12,13 +12,13 @@ impl<A, B> Plug<B> for Option<A> {
 }
 
 impl<A> Functor for Option<A> {
-    fn fmap<B, F: FnOnce(A) -> B>(self, f: F) -> <Self as Plug<B>>::Out {
+    fn fmap<B, F: FnMut(A) -> B>(self, f: F) -> <Self as Plug<B>>::Out {
         self.map(f)
     }
 }
 
 impl<A> Apply for Option<A> {
-    fn ap<B, F: FnOnce(A) -> B>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
+    fn ap<B, F: FnMut(A) -> B>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
         match f {
             Some(fun) => self.map(fun),
             None => None,
@@ -35,7 +35,7 @@ impl<A> Applicative for Option<A> {
 impl<A> Monad for Option<A> {
     fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
     where
-        F: FnOnce(A) -> <Self as Plug<B>>::Out,
+        F: FnMut(A) -> <Self as Plug<B>>::Out,
     {
         self.and_then(f)
     }
@@ -58,14 +58,14 @@ impl<A: Semigroup> Monoid for Option<A> {
 }
 
 impl<A> Foldable for Option<A> {
-    fn fold_left<B, F: FnOnce(B, A) -> B>(self, init: B, f: F) -> B {
+    fn fold_left<B, F: FnMut(B, A) -> B>(self, init: B, mut f: F) -> B {
         match self {
             Some(a) => f(init, a),
             None => init,
         }
     }
 
-    fn fold_right<B, F: FnOnce(A, B) -> B>(self, init: B, f: F) -> B {
+    fn fold_right<B, F: FnMut(A, B) -> B>(self, init: B, mut f: F) -> B {
         self.fold_left(init, |b, a| f(a, b))
     }
 }
