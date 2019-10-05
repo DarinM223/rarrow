@@ -72,15 +72,19 @@ impl<A: Debug> Show for Vec<A> {
     }
 }
 
-impl<A: Copy> Alternative for Vec<A> {
-    fn empty() -> Vec<A> {
-        vec![]
-    }
-
+impl<A> SemigroupK for Vec<A> {
     fn combine_k(self, other: Vec<A>) -> Vec<A> {
         self.into_iter().chain(other.into_iter()).collect()
     }
 }
+
+impl<A> MonoidK for Vec<A> {
+    fn empty() -> Vec<A> {
+        vec![]
+    }
+}
+
+impl<A: Copy> Alternative for Vec<A> {}
 
 #[cfg(test)]
 mod tests {

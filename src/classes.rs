@@ -63,10 +63,15 @@ pub trait Contravariant: Unplug + Plug<<Self as Unplug>::A> {
         F: FnOnce(B) -> <Self as Unplug>::A;
 }
 
-pub trait Alternative: Applicative {
-    fn empty() -> Self;
+pub trait SemigroupK: Unplug + Plug<<Self as Unplug>::A> {
     fn combine_k(self, other: Self) -> Self;
 }
+
+pub trait MonoidK: SemigroupK {
+    fn empty() -> Self;
+}
+
+pub trait Alternative: Applicative + MonoidK {}
 
 pub trait Bifunctor: Unplug2 + Plug2<<Self as Unplug2>::A, <Self as Unplug2>::B> {
     fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Plug2<C, D>>::Out

@@ -19,10 +19,7 @@ impl<A> Functor for Option<A> {
 
 impl<A> Apply for Option<A> {
     fn ap<B, F: FnMut(A) -> B>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
-        match f {
-            Some(fun) => self.map(fun),
-            None => None,
-        }
+        f.and_then(|fun| self.map(fun))
     }
 }
 
@@ -76,19 +73,22 @@ impl<A: Debug> Show for Option<A> {
     }
 }
 
-impl<A> Alternative for Option<A> {
-    fn empty() -> Self {
-        None
-    }
-
+impl<A> SemigroupK for Option<A> {
     fn combine_k(self, other: Self) -> Self {
         match (self, other) {
-            (Some(a), Some(_)) => Some(a),
-            (a, None) => a,
             (None, b) => b,
+            (a, _) => a,
         }
     }
 }
+
+impl<A> MonoidK for Option<A> {
+    fn empty() -> Self {
+        None
+    }
+}
+
+impl<A> Alternative for Option<A> {}
 
 // This doesn't work... It can't infer that Option<B> == <Option<A> as Plug<B>>::Out.
 
