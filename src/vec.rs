@@ -13,16 +13,16 @@ impl Hkt1 for VecFamily {
 }
 
 impl Functor for VecFamily {
-    fn fmap<A, B, F: Fn(A) -> B>(fa: Vec<A>, f: F) -> Vec<B> {
+    fn fmap<A, B, F: Fn(A) -> B>(f: F, fa: Vec<A>) -> Vec<B> {
         fa.into_iter().map(f).collect()
     }
 }
 
 impl Apply for VecFamily {
-    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Vec<A>, fb: Vec<F>) -> Vec<B> {
+    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Vec<F>, fb: Vec<A>) -> Vec<B> {
         let mut result = Vec::with_capacity(fa.len() * fb.len());
-        for f in fb.into_iter() {
-            for x in fa.iter() {
+        for f in fa.into_iter() {
+            for x in fb.iter() {
                 result.push(f(x.clone()));
             }
         }

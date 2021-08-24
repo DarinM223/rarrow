@@ -29,15 +29,15 @@ impl Hkt2 for ResultFamily2 {
 }
 
 impl<E> Functor for ResultFamily1<E> {
-    fn fmap<A, B, F: Fn(A) -> B>(fa: Result<A, E>, f: F) -> Result<B, E> {
+    fn fmap<A, B, F: Fn(A) -> B>(f: F, fa: Result<A, E>) -> Result<B, E> {
         fa.map(f)
     }
 }
 
 impl<E> Apply for ResultFamily1<E> {
-    fn ap<A, B, F: Fn(A) -> B>(fa: Result<A, E>, fb: Result<F, E>) -> Result<B, E> {
+    fn ap<A, B, F: Fn(A) -> B>(fa: Result<F, E>, fb: Result<A, E>) -> Result<B, E> {
         match (fa, fb) {
-            (Ok(v), Ok(f)) => Ok(f(v)),
+            (Ok(f), Ok(v)) => Ok(f(v)),
             (Err(e), _) => Err(e),
             (_, Err(e)) => Err(e),
         }
@@ -58,11 +58,11 @@ impl<E> Monad for ResultFamily1<E> {
 
 impl<E> Traversable for ResultFamily1<E> {
     fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
-        t: Result<A, E>,
         f: F,
+        t: Result<A, E>,
     ) -> App::Member<Result<B, E>> {
         match t {
-            Ok(v) => App::fmap(f(v), |v| Ok(v)),
+            Ok(v) => App::fmap(|v| Ok(v), f(v)),
             Err(e) => App::pure(Err(e)),
         }
     }
@@ -92,9 +92,9 @@ impl<E> SemigroupK for ResultFamily1<E> {
 
 impl Bifunctor for ResultFamily2 {
     fn bimap<A, B, C, D, F1: Fn(A) -> B, F2: Fn(C) -> D>(
-        f: Result<A, C>,
         f1: F1,
         f2: F2,
+        f: Result<A, C>,
     ) -> Result<B, D> {
         match f {
             Ok(v) => Ok(f1(v)),

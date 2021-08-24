@@ -13,14 +13,14 @@ impl Hkt1 for OptionFamily {
 }
 
 impl Functor for OptionFamily {
-    fn fmap<A, B, F: Fn(A) -> B>(fa: Option<A>, f: F) -> Option<B> {
+    fn fmap<A, B, F: Fn(A) -> B>(f: F, fa: Option<A>) -> Option<B> {
         fa.map(f)
     }
 }
 
 impl Apply for OptionFamily {
-    fn ap<A, B, F: Fn(A) -> B>(fa: Option<A>, fb: Option<F>) -> Option<B> {
-        fb.and_then(|fun| fa.map(fun))
+    fn ap<A, B, F: Fn(A) -> B>(fa: Option<F>, fb: Option<A>) -> Option<B> {
+        fa.and_then(|fun| fb.map(fun))
     }
 }
 
@@ -38,11 +38,11 @@ impl Monad for OptionFamily {
 
 impl Traversable for OptionFamily {
     fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
-        t: Option<A>,
         f: F,
+        t: Option<A>,
     ) -> App::Member<Option<B>> {
         match t {
-            Some(v) => App::fmap(f(v), |v| Some(v)),
+            Some(v) => App::fmap(|v| Some(v), f(v)),
             None => App::pure(None),
         }
     }

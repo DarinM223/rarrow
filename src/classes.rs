@@ -1,7 +1,7 @@
 use crate::mirror::{Hkt1, Hkt2, Mirror1, Mirror1Ext, Mirror2, Mirror2Ext};
 
 pub trait Functor: Hkt1 {
-    fn fmap<A, B, F: Fn(A) -> B>(fa: Self::Member<A>, f: F) -> Self::Member<B>;
+    fn fmap<A, B, F: Fn(A) -> B>(f: F, fa: Self::Member<A>) -> Self::Member<B>;
 }
 
 pub trait FunctorExt: Mirror1 + Sized
@@ -9,14 +9,14 @@ where
     Self::Family: Functor,
 {
     fn fmap<B, F: Fn(Self::T) -> B>(self, f: F) -> <Self::Family as Hkt1>::Member<B> {
-        <Self::Family as Functor>::fmap(self.as_member(), f)
+        <Self::Family as Functor>::fmap(f, self.as_member())
     }
 }
 
 impl<F: Functor, T: Mirror1<Family = F>> FunctorExt for T {}
 
 pub trait Apply: Functor {
-    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Self::Member<A>, fb: Self::Member<F>) -> Self::Member<B>;
+    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Self::Member<F>, fb: Self::Member<A>) -> Self::Member<B>;
 }
 
 pub trait ApplyExt: Mirror1 + Sized
@@ -30,7 +30,7 @@ where
     where
         <Self as Mirror1>::T: Clone,
     {
-        <Self::Family as Apply>::ap(self.as_member(), f)
+        <Self::Family as Apply>::ap(f, self.as_member())
     }
 }
 
@@ -71,8 +71,8 @@ impl<F: Monad, T: Mirror1<Family = F>> MonadExt for T {}
 
 pub trait Traversable: Hkt1 {
     fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
-        t: Self::Member<A>,
         f: F,
+        t: Self::Member<A>,
     ) -> App::Member<Self::Member<B>>;
 }
 
@@ -87,9 +87,10 @@ where
     where
         AppB::Family: Applicative,
     {
-        <Self::Family as Traversable>::traverse::<AppB::Family, _, _, _>(self.as_member(), |t| {
-            f(t).as_member()
-        })
+        <Self::Family as Traversable>::traverse::<AppB::Family, _, _, _>(
+            |t| f(t).as_member(),
+            self.as_member(),
+        )
     }
 }
 
@@ -97,9 +98,9 @@ impl<F: Traversable, T: Mirror1<Family = F>> TraversableExt for T {}
 
 pub trait Bifunctor: Hkt2 {
     fn bimap<A, B, C, D, F1: Fn(A) -> B, F2: Fn(C) -> D>(
-        f: Self::Member<A, C>,
         f1: F1,
         f2: F2,
+        f: Self::Member<A, C>,
     ) -> Self::Member<B, D>;
 }
 
@@ -112,7 +113,7 @@ where
         f1: F1,
         f2: F2,
     ) -> <Self::Family as Hkt2>::Member<C, D> {
-        <Self::Family as Bifunctor>::bimap(self.as_member(), f1, f2)
+        <Self::Family as Bifunctor>::bimap(f1, f2, self.as_member())
     }
 }
 
@@ -152,7 +153,7 @@ pub trait Show {
 }
 
 pub trait Contravariant: Hkt1 {
-    fn contramap<A, B, F: Fn(A) -> B>(fa: Self::Member<B>, f: F) -> Self::Member<A>;
+    fn contramap<A, B, F: Fn(A) -> B>(f: F, fa: Self::Member<B>) -> Self::Member<A>;
 }
 
 pub trait ContravariantExt: Mirror1 + Sized
@@ -160,7 +161,7 @@ where
     Self::Family: Contravariant,
 {
     fn contramap<A, F: Fn(A) -> Self::T>(self, f: F) -> <Self::Family as Hkt1>::Member<A> {
-        <Self::Family as Contravariant>::contramap(self.as_member(), f)
+        <Self::Family as Contravariant>::contramap(f, self.as_member())
     }
 }
 
