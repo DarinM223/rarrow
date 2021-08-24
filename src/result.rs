@@ -1,50 +1,105 @@
 use crate::classes::*;
-use crate::plug::{Plug, Plug2, Unplug, Unplug2};
+use crate::mirror::{Hkt1, Hkt2, Mirror1, Mirror2};
+use core::marker::PhantomData;
 use std::fmt::Debug;
 
-impl<A, E> Unplug for Result<A, E> {
-    type F = Result<A, E>;
-    type A = A;
+impl<A, E> Mirror1 for Result<A, E> {
+    type T = A;
+    type Family = ResultFamily1<E>;
 }
 
-impl<A, B, E> Plug<B> for Result<A, E> {
-    type Out = Result<B, E>;
-}
-
-impl<A, B> Unplug2 for Result<A, B> {
-    type F = Result<A, B>;
+impl<A, B> Mirror2 for Result<A, B> {
     type A = A;
     type B = B;
+    type Family = ResultFamily2;
 }
 
-impl<A, B, C, D> Plug2<C, D> for Result<A, B> {
-    type Out = Result<C, D>;
+pub struct ResultFamily1<E> {
+    e: PhantomData<E>,
 }
 
-impl<A, E> Functor for Result<A, E> {
-    fn fmap<B, F: FnMut(A) -> B>(self, f: F) -> <Self as Plug<B>>::Out {
-        self.map(f)
+impl<E> Hkt1 for ResultFamily1<E> {
+    type Member<T> = Result<T, E>;
+}
+
+pub struct ResultFamily2;
+
+impl Hkt2 for ResultFamily2 {
+    type Member<A, B> = Result<A, B>;
+}
+
+impl<E> Functor for ResultFamily1<E> {
+    fn fmap<A, B, F: Fn(A) -> B>(fa: Result<A, E>, f: F) -> Result<B, E> {
+        fa.map(f)
     }
 }
 
-impl<A, E> Apply for Result<A, E> {
-    fn ap<B, F: FnMut(A) -> B>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
-        f.and_then(|fun| self.map(fun))
+impl<E> Apply for ResultFamily1<E> {
+    fn ap<A, B, F: Fn(A) -> B>(fa: Result<A, E>, fb: Result<F, E>) -> Result<B, E> {
+        match (fa, fb) {
+            (Ok(v), Ok(f)) => Ok(f(v)),
+            (Err(e), _) => Err(e),
+            (_, Err(e)) => Err(e),
+        }
     }
 }
 
-impl<A, E> Applicative for Result<A, E> {
-    fn pure(value: A) -> Self {
-        Ok(value)
+impl<E> Applicative for ResultFamily1<E> {
+    fn pure<A>(a: A) -> Result<A, E> {
+        Ok(a)
     }
 }
 
-impl<A, E> Monad for Result<A, E> {
-    fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        F: FnMut(A) -> <Self as Plug<B>>::Out,
-    {
-        self.and_then(f)
+impl<E> Monad for ResultFamily1<E> {
+    fn bind<A, B, F: Fn(A) -> Result<B, E>>(fa: Result<A, E>, f: F) -> Result<B, E> {
+        fa.and_then(f)
+    }
+}
+
+impl<E> Traversable for ResultFamily1<E> {
+    fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
+        t: Result<A, E>,
+        f: F,
+    ) -> App::Member<Result<B, E>> {
+        match t {
+            Ok(v) => App::fmap(f(v), |v| Ok(v)),
+            Err(e) => App::pure(Err(e)),
+        }
+    }
+}
+
+impl<E> Foldable for ResultFamily1<E> {
+    fn fold_left<A, B, F: Fn(B, A) -> B>(f: F, init: B, t: Result<A, E>) -> B {
+        match t {
+            Ok(a) => f(init, a),
+            Err(_) => init,
+        }
+    }
+
+    fn fold_right<A, B, F: Fn(A, B) -> B>(f: F, init: B, t: Result<A, E>) -> B {
+        ResultFamily1::fold_left(|b, a| f(a, b), init, t)
+    }
+}
+
+impl<E> SemigroupK for ResultFamily1<E> {
+    fn combine_k<A>(fa: Result<A, E>, fb: Result<A, E>) -> Result<A, E> {
+        match (fa, fb) {
+            (Err(_), b) => b,
+            (a, _) => a,
+        }
+    }
+}
+
+impl Bifunctor for ResultFamily2 {
+    fn bimap<A, B, C, D, F1: Fn(A) -> B, F2: Fn(C) -> D>(
+        f: Result<A, C>,
+        f1: F1,
+        f2: F2,
+    ) -> Result<B, D> {
+        match f {
+            Ok(v) => Ok(f1(v)),
+            Err(e) => Err(f2(e)),
+        }
     }
 }
 
@@ -57,47 +112,18 @@ impl<A, E> Semigroup for Result<A, E> {
     }
 }
 
-impl<A, E> Foldable for Result<A, E> {
-    fn fold_left<B, F: FnMut(B, A) -> B>(self, init: B, mut f: F) -> B {
-        match self {
-            Ok(a) => f(init, a),
-            Err(_) => init,
-        }
-    }
-
-    fn fold_right<B, F: FnMut(A, B) -> B>(self, init: B, mut f: F) -> B {
-        self.fold_left(init, |b, a| f(a, b))
-    }
-}
-
 impl<A: Debug, E: Debug> Show for Result<A, E> {
     fn show(a: Result<A, E>) -> String {
         format!("{:?}", a)
     }
 }
 
-impl<A, E> SemigroupK for Result<A, E> {
-    fn combine_k(self, other: Result<A, E>) -> Result<A, E> {
-        match (self, other) {
-            (Err(_), b) => b,
-            (a, _) => a,
-        }
+#[cfg(test)]
+mod tests {
+    use crate::classes::*;
+
+    #[test]
+    fn test_semigroup() {
+        assert_eq!(Semigroup::combine(Ok::<_, i32>(1), Ok(2)), Ok(1));
     }
 }
-
-// This also doesn't work...
-// It can't infer that Result<C, D> == <Result<A, E> as Plug2<C, D>>::Out
-
-// impl<A, E> Bifunctor for Result<A, E> {
-//     fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Plug2<C, D>>::Out
-//     where
-//         Self: Plug2<C, D>,
-//         F: FnOnce(A) -> C,
-//         G: FnOnce(E) -> D
-//     {
-//         match self {
-//             Ok(a) => Ok(f(a)) as Result<C, D>,
-//             Err(e) => Err(g(e)) as Result<C, D>,
-//         }
-//     }
-// }

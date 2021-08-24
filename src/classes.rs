@@ -1,29 +1,122 @@
-use crate::plug::{Plug, Plug2, Unplug, Unplug2};
+use crate::mirror::{Hkt1, Hkt2, Mirror1, Mirror1Ext, Mirror2, Mirror2Ext};
 
-pub trait Functor: Unplug + Plug<<Self as Unplug>::A> {
-    fn fmap<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        Self: Plug<B>,
-        F: FnMut(<Self as Unplug>::A) -> B;
+pub trait Functor: Hkt1 {
+    fn fmap<A, B, F: Fn(A) -> B>(fa: Self::Member<A>, f: F) -> Self::Member<B>;
 }
+
+pub trait FunctorExt: Mirror1 + Sized
+where
+    Self::Family: Functor,
+{
+    fn fmap<B, F: Fn(Self::T) -> B>(self, f: F) -> <Self::Family as Hkt1>::Member<B> {
+        <Self::Family as Functor>::fmap(self.as_member(), f)
+    }
+}
+
+impl<F: Functor, T: Mirror1<Family = F>> FunctorExt for T {}
 
 pub trait Apply: Functor {
-    fn ap<B, F>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out
-    where
-        Self: Plug<B> + Plug<F>,
-        F: Fn(<Self as Unplug>::A) -> B;
+    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Self::Member<A>, fb: Self::Member<F>) -> Self::Member<B>;
 }
+
+pub trait ApplyExt: Mirror1 + Sized
+where
+    Self::Family: Apply,
+{
+    fn ap<B, F: Fn(Self::T) -> B>(
+        self,
+        f: <Self::Family as Hkt1>::Member<F>,
+    ) -> <Self::Family as Hkt1>::Member<B>
+    where
+        <Self as Mirror1>::T: Clone,
+    {
+        <Self::Family as Apply>::ap(self.as_member(), f)
+    }
+}
+
+impl<F: Apply, T: Mirror1<Family = F>> ApplyExt for T {}
 
 pub trait Applicative: Apply {
-    fn pure(value: <Self as Unplug>::A) -> Self;
+    fn pure<A>(a: A) -> Self::Member<A>;
 }
 
-pub trait Monad: Applicative {
-    fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        Self: Plug<B>,
-        F: FnMut(<Self as Unplug>::A) -> <Self as Plug<B>>::Out;
+pub trait ApplicativeExt: Mirror1 + Sized
+where
+    Self::Family: Applicative,
+{
+    fn pure(a: Self::T) -> <Self::Family as Hkt1>::Member<Self::T> {
+        <Self::Family as Applicative>::pure(a)
+    }
 }
+
+impl<F: Applicative, T: Mirror1<Family = F>> ApplicativeExt for T {}
+
+pub trait Monad: Applicative {
+    fn bind<A, B, F: Fn(A) -> Self::Member<B>>(a: Self::Member<A>, f: F) -> Self::Member<B>;
+}
+
+pub trait MonadExt: Mirror1 + Sized
+where
+    Self::Family: Monad,
+{
+    fn bind<B, F: Fn(Self::T) -> <Self::Family as Hkt1>::Member<B>>(
+        self,
+        f: F,
+    ) -> <Self::Family as Hkt1>::Member<B> {
+        <Self::Family as Monad>::bind(self.as_member(), f)
+    }
+}
+
+impl<F: Monad, T: Mirror1<Family = F>> MonadExt for T {}
+
+pub trait Traversable: Hkt1 {
+    fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
+        t: Self::Member<A>,
+        f: F,
+    ) -> App::Member<Self::Member<B>>;
+}
+
+pub trait TraversableExt: Mirror1 + Sized
+where
+    Self::Family: Traversable,
+{
+    fn traverse<AppB: Mirror1, F: Fn(Self::T) -> AppB>(
+        self,
+        f: F,
+    ) -> <AppB::Family as Hkt1>::Member<<Self::Family as Hkt1>::Member<AppB::T>>
+    where
+        AppB::Family: Applicative,
+    {
+        <Self::Family as Traversable>::traverse::<AppB::Family, _, _, _>(self.as_member(), |t| {
+            f(t).as_member()
+        })
+    }
+}
+
+impl<F: Traversable, T: Mirror1<Family = F>> TraversableExt for T {}
+
+pub trait Bifunctor: Hkt2 {
+    fn bimap<A, B, C, D, F1: Fn(A) -> B, F2: Fn(C) -> D>(
+        f: Self::Member<A, C>,
+        f1: F1,
+        f2: F2,
+    ) -> Self::Member<B, D>;
+}
+
+pub trait BifunctorExt: Mirror2 + Sized
+where
+    Self::Family: Bifunctor,
+{
+    fn bimap<C, D, F1: Fn(Self::A) -> C, F2: Fn(Self::B) -> D>(
+        self,
+        f1: F1,
+        f2: F2,
+    ) -> <Self::Family as Hkt2>::Member<C, D> {
+        <Self::Family as Bifunctor>::bimap(self.as_member(), f1, f2)
+    }
+}
+
+impl<F: Bifunctor, T: Mirror2<Family = F>> BifunctorExt for T {}
 
 pub trait Semigroup {
     fn combine(self, other: Self) -> Self;
@@ -33,50 +126,76 @@ pub trait Monoid: Semigroup {
     fn mempty() -> Self;
 }
 
-pub trait Foldable: Unplug + Plug<<Self as Unplug>::A> {
-    fn fold_left<B, F>(self, init: B, f: F) -> B
-    where
-        F: FnMut(B, <Self as Unplug>::A) -> B;
+pub trait Foldable: Hkt1 {
+    fn fold_left<A, B, F: Fn(B, A) -> B>(f: F, init: B, t: Self::Member<A>) -> B;
 
-    fn fold_right<B, F>(self, init: B, f: F) -> B
-    where
-        F: FnMut(<Self as Unplug>::A, B) -> B;
+    fn fold_right<A, B, F: Fn(A, B) -> B>(f: F, init: B, t: Self::Member<A>) -> B;
 }
 
-pub trait Traverse: Functor + Foldable {
-    fn traverse<F, M, B>(self, f: F) -> <M as Plug<<Self as Plug<B>>::Out>>::Out
-    where
-        Self: Plug<B>,
-        M: Unplug<A = B> + Plug<<Self as Plug<B>>::Out>,
-        <M as Plug<<Self as Plug<B>>::Out>>::Out: Applicative,
-        F: FnOnce(<Self as Unplug>::A) -> M;
+pub trait FoldableExt: Mirror1 + Sized
+where
+    Self::Family: Foldable,
+{
+    fn fold_left<B, F: Fn(B, Self::T) -> B>(self, init: B, f: F) -> B {
+        <Self::Family as Foldable>::fold_left(f, init, self.as_member())
+    }
+
+    fn fold_right<B, F: Fn(Self::T, B) -> B>(self, init: B, f: F) -> B {
+        <Self::Family as Foldable>::fold_right(f, init, self.as_member())
+    }
 }
+
+impl<F: Foldable, T: Mirror1<Family = F>> FoldableExt for T {}
 
 pub trait Show {
     fn show(a: Self) -> String;
 }
 
-pub trait Contravariant: Unplug + Plug<<Self as Unplug>::A> {
-    fn contramap<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        Self: Plug<B>,
-        F: FnOnce(B) -> <Self as Unplug>::A;
+pub trait Contravariant: Hkt1 {
+    fn contramap<A, B, F: Fn(A) -> B>(fa: Self::Member<B>, f: F) -> Self::Member<A>;
 }
 
-pub trait SemigroupK: Unplug + Plug<<Self as Unplug>::A> {
-    fn combine_k(self, other: Self) -> Self;
+pub trait ContravariantExt: Mirror1 + Sized
+where
+    Self::Family: Contravariant,
+{
+    fn contramap<A, F: Fn(A) -> Self::T>(self, f: F) -> <Self::Family as Hkt1>::Member<A> {
+        <Self::Family as Contravariant>::contramap(self.as_member(), f)
+    }
 }
+
+impl<F: Contravariant, T: Mirror1<Family = F>> ContravariantExt for T {}
+
+pub trait SemigroupK: Hkt1 {
+    fn combine_k<A>(fa: Self::Member<A>, fb: Self::Member<A>) -> Self::Member<A>;
+}
+
+pub trait SemigroupKExt: Mirror1 + Sized
+where
+    Self::Family: SemigroupK,
+{
+    fn combine_k(
+        self,
+        other: <Self::Family as Hkt1>::Member<Self::T>,
+    ) -> <Self::Family as Hkt1>::Member<Self::T> {
+        <Self::Family as SemigroupK>::combine_k(self.as_member(), other)
+    }
+}
+
+impl<F: SemigroupK, T: Mirror1<Family = F>> SemigroupKExt for T {}
 
 pub trait MonoidK: SemigroupK {
-    fn empty() -> Self;
+    fn empty<A>() -> Self::Member<A>;
 }
+pub trait MonoidKExt: Mirror1 + Sized
+where
+    Self::Family: MonoidK,
+{
+    fn empty() -> <Self::Family as Hkt1>::Member<Self::T> {
+        <Self::Family as MonoidK>::empty()
+    }
+}
+
+impl<F: MonoidK, T: Mirror1<Family = F>> MonoidKExt for T {}
 
 pub trait Alternative: Applicative + MonoidK {}
-
-pub trait Bifunctor: Unplug2 + Plug2<<Self as Unplug2>::A, <Self as Unplug2>::B> {
-    fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Plug2<C, D>>::Out
-    where
-        Self: Plug2<C, D>,
-        F: FnOnce(<Self as Unplug2>::A) -> C,
-        G: FnOnce(<Self as Unplug2>::B) -> D;
-}

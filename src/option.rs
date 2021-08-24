@@ -1,42 +1,82 @@
 use crate::classes::*;
-use crate::plug::{Plug, Unplug};
+use crate::mirror::{Hkt1, Mirror1};
 use std::fmt::Debug;
 
-impl<A> Unplug for Option<A> {
-    type F = Option<A>;
-    type A = A;
+impl<A> Mirror1 for Option<A> {
+    type T = A;
+    type Family = OptionFamily;
 }
 
-impl<A, B> Plug<B> for Option<A> {
-    type Out = Option<B>;
+pub struct OptionFamily;
+impl Hkt1 for OptionFamily {
+    type Member<T> = Option<T>;
 }
 
-impl<A> Functor for Option<A> {
-    fn fmap<B, F: FnMut(A) -> B>(self, f: F) -> <Self as Plug<B>>::Out {
-        self.map(f)
+impl Functor for OptionFamily {
+    fn fmap<A, B, F: Fn(A) -> B>(fa: Option<A>, f: F) -> Option<B> {
+        fa.map(f)
     }
 }
 
-impl<A> Apply for Option<A> {
-    fn ap<B, F: FnMut(A) -> B>(self, f: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
-        f.and_then(|fun| self.map(fun))
+impl Apply for OptionFamily {
+    fn ap<A, B, F: Fn(A) -> B>(fa: Option<A>, fb: Option<F>) -> Option<B> {
+        fb.and_then(|fun| fa.map(fun))
     }
 }
 
-impl<A> Applicative for Option<A> {
-    fn pure(value: A) -> Self {
-        Some(value)
+impl Applicative for OptionFamily {
+    fn pure<A>(a: A) -> Option<A> {
+        Some(a)
     }
 }
 
-impl<A> Monad for Option<A> {
-    fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        F: FnMut(A) -> <Self as Plug<B>>::Out,
-    {
-        self.and_then(f)
+impl Monad for OptionFamily {
+    fn bind<A, B, F: Fn(A) -> Option<B>>(fa: Option<A>, f: F) -> Option<B> {
+        fa.and_then(f)
     }
 }
+
+impl Traversable for OptionFamily {
+    fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
+        t: Option<A>,
+        f: F,
+    ) -> App::Member<Option<B>> {
+        match t {
+            Some(v) => App::fmap(f(v), |v| Some(v)),
+            None => App::pure(None),
+        }
+    }
+}
+
+impl Foldable for OptionFamily {
+    fn fold_left<A, B, F: Fn(B, A) -> B>(f: F, init: B, t: Option<A>) -> B {
+        match t {
+            Some(a) => f(init, a),
+            None => init,
+        }
+    }
+
+    fn fold_right<A, B, F: Fn(A, B) -> B>(f: F, init: B, t: Option<A>) -> B {
+        OptionFamily::fold_left(|b, a| f(a, b), init, t)
+    }
+}
+
+impl SemigroupK for OptionFamily {
+    fn combine_k<A>(fa: Option<A>, fb: Option<A>) -> Option<A> {
+        match (fa, fb) {
+            (None, b) => b,
+            (a, _) => a,
+        }
+    }
+}
+
+impl MonoidK for OptionFamily {
+    fn empty<A>() -> Option<A> {
+        None
+    }
+}
+
+impl Alternative for OptionFamily {}
 
 impl<A: Semigroup> Semigroup for Option<A> {
     fn combine(self, other: Option<A>) -> Option<A> {
@@ -54,57 +94,11 @@ impl<A: Semigroup> Monoid for Option<A> {
     }
 }
 
-impl<A> Foldable for Option<A> {
-    fn fold_left<B, F: FnMut(B, A) -> B>(self, init: B, mut f: F) -> B {
-        match self {
-            Some(a) => f(init, a),
-            None => init,
-        }
-    }
-
-    fn fold_right<B, F: FnMut(A, B) -> B>(self, init: B, mut f: F) -> B {
-        self.fold_left(init, |b, a| f(a, b))
-    }
-}
-
 impl<A: Debug> Show for Option<A> {
     fn show(a: Option<A>) -> String {
         format!("{:?}", a)
     }
 }
-
-impl<A> SemigroupK for Option<A> {
-    fn combine_k(self, other: Self) -> Self {
-        match (self, other) {
-            (None, b) => b,
-            (a, _) => a,
-        }
-    }
-}
-
-impl<A> MonoidK for Option<A> {
-    fn empty() -> Self {
-        None
-    }
-}
-
-impl<A> Alternative for Option<A> {}
-
-// This doesn't work... It can't infer that Option<B> == <Option<A> as Plug<B>>::Out.
-
-// use crate::classes::Traverse;
-// impl<A> Traverse for Option<A> {
-//     fn traverse<F, M, B>(self, f: F) -> <M as Plug<<Self as Plug<B>>::Out>>::Out
-//     where
-//         Self: Plug<B>,
-//         M: Unplug<A = B> + Plug<<Self as Plug<B>>::Out>,
-//         <M as Plug<<Self as Plug<B>>::Out>>::Out: Applicative,
-//         F: FnOnce(A) -> M,
-//     {
-//         let v: <Option<A> as Plug<B>>::Out = None as Option<B>;
-//         Applicative::pure(v)
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -129,7 +123,7 @@ mod tests {
         assert_eq!(None.fmap(|a: i32| a + 1), None);
 
         assert_eq!(Option::pure(2), Some(2));
-        let v: Option<i32> = Applicative::pure(2);
+        let v: Option<i32> = Option::pure(2);
         assert_eq!(v, Some(2));
         assert_eq!(Some(2).ap(Some(|a| a + 1)), Some(3));
         assert_eq!(Some(2).ap::<i32, fn(i32) -> i32>(None), None);

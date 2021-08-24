@@ -1,5 +1,7 @@
+#![feature(generic_associated_types)]
+
 pub mod classes;
-pub mod plug;
+pub mod mirror;
 
 pub mod option;
 pub mod result;

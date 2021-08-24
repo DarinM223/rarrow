@@ -1,48 +1,70 @@
 use crate::classes::*;
-use crate::plug::{Plug, Unplug};
+use crate::mirror::{Hkt1, Mirror1};
 use std::fmt::Debug;
 
-impl<A> Unplug for Vec<A> {
-    type F = Vec<A>;
-    type A = A;
+impl<A> Mirror1 for Vec<A> {
+    type T = A;
+    type Family = VecFamily;
 }
 
-impl<A, B> Plug<B> for Vec<A> {
-    type Out = Vec<B>;
+pub struct VecFamily;
+impl Hkt1 for VecFamily {
+    type Member<T> = Vec<T>;
 }
 
-impl<A> Functor for Vec<A> {
-    fn fmap<B, F: FnMut(A) -> B>(self, f: F) -> <Self as Plug<B>>::Out {
-        self.into_iter().map(f).collect()
+impl Functor for VecFamily {
+    fn fmap<A, B, F: Fn(A) -> B>(fa: Vec<A>, f: F) -> Vec<B> {
+        fa.into_iter().map(f).collect()
     }
 }
 
-impl<A: Copy> Apply for Vec<A> {
-    fn ap<B, F: FnMut(A) -> B>(self, fs: <Self as Plug<F>>::Out) -> <Self as Plug<B>>::Out {
-        let mut result = Vec::with_capacity(self.len() * fs.len());
-        for mut f in fs.into_iter() {
-            for x in self.iter() {
-                result.push(f(*x));
+impl Apply for VecFamily {
+    fn ap<A: Clone, B, F: Fn(A) -> B>(fa: Vec<A>, fb: Vec<F>) -> Vec<B> {
+        let mut result = Vec::with_capacity(fa.len() * fb.len());
+        for f in fb.into_iter() {
+            for x in fa.iter() {
+                result.push(f(x.clone()));
             }
         }
         result
     }
 }
 
-impl<A: Copy> Applicative for Vec<A> {
-    fn pure(a: A) -> Self {
+impl Applicative for VecFamily {
+    fn pure<A>(a: A) -> Vec<A> {
         vec![a]
     }
 }
 
-impl<A: Copy> Monad for Vec<A> {
-    fn bind<B, F>(self, f: F) -> <Self as Plug<B>>::Out
-    where
-        F: FnMut(A) -> <Self as Plug<B>>::Out,
-    {
-        self.into_iter().flat_map(f).collect()
+impl Monad for VecFamily {
+    fn bind<A, B, F: Fn(A) -> Vec<B>>(fa: Vec<A>, f: F) -> Vec<B> {
+        fa.into_iter().flat_map(f).collect()
     }
 }
+
+impl Foldable for VecFamily {
+    fn fold_left<A, B, F: Fn(B, A) -> B>(f: F, init: B, t: Vec<A>) -> B {
+        t.into_iter().fold(init, f)
+    }
+
+    fn fold_right<A, B, F: Fn(A, B) -> B>(f: F, init: B, t: Vec<A>) -> B {
+        t.into_iter().rev().fold(init, |a, b| f(b, a))
+    }
+}
+
+impl SemigroupK for VecFamily {
+    fn combine_k<A>(fa: Vec<A>, fb: Vec<A>) -> Vec<A> {
+        fa.into_iter().chain(fb.into_iter()).collect()
+    }
+}
+
+impl MonoidK for VecFamily {
+    fn empty<A>() -> Vec<A> {
+        vec![]
+    }
+}
+
+impl Alternative for VecFamily {}
 
 impl<A> Semigroup for Vec<A> {
     fn combine(self, other: Vec<A>) -> Vec<A> {
@@ -56,35 +78,11 @@ impl<A> Monoid for Vec<A> {
     }
 }
 
-impl<A> Foldable for Vec<A> {
-    fn fold_left<B, F: FnMut(B, A) -> B>(self, init: B, f: F) -> B {
-        self.into_iter().fold(init, f)
-    }
-
-    fn fold_right<B, F: FnMut(A, B) -> B>(self, init: B, mut f: F) -> B {
-        self.into_iter().rev().fold(init, |a, b| f(b, a))
-    }
-}
-
 impl<A: Debug> Show for Vec<A> {
     fn show(a: Vec<A>) -> String {
         format!("{:?}", a)
     }
 }
-
-impl<A> SemigroupK for Vec<A> {
-    fn combine_k(self, other: Vec<A>) -> Vec<A> {
-        self.into_iter().chain(other.into_iter()).collect()
-    }
-}
-
-impl<A> MonoidK for Vec<A> {
-    fn empty() -> Vec<A> {
-        vec![]
-    }
-}
-
-impl<A: Copy> Alternative for Vec<A> {}
 
 #[cfg(test)]
 mod tests {
