@@ -52,6 +52,28 @@ impl Foldable for VecFamily {
     }
 }
 
+impl Traversable for VecFamily {
+    fn traverse<App: Applicative, A, B: Clone, F: Fn(A) -> App::Member<B>>(
+        f: F,
+        t: Vec<A>,
+    ) -> App::Member<Vec<B>> {
+        t.fold_left(App::pure(Vec::new()), |ys, x| {
+            App::ap(
+                App::fmap(
+                    |e: B| {
+                        move |mut v: Vec<B>| {
+                            v.push(e.clone());
+                            v
+                        }
+                    },
+                    f(x),
+                ),
+                ys,
+            )
+        })
+    }
+}
+
 impl SemigroupK for VecFamily {
     fn combine_k<A>(fa: Vec<A>, fb: Vec<A>) -> Vec<A> {
         fa.into_iter().chain(fb.into_iter()).collect()
@@ -139,6 +161,21 @@ mod tests {
         assert_eq!(
             vec![1, 2, 3, 4, 5].fold_right("".to_owned(), |i, acc| format!("{}{}", acc, i)),
             "54321"
+        );
+    }
+
+    #[test]
+    fn test_traverse() {
+        assert_eq!(vec![1, 2, 3].traverse(|i| Some(i)), Some(vec![1, 2, 3]));
+        assert_eq!(vec![].traverse(|i: i32| Some(i)), Some(vec![]));
+        assert_eq!(vec![1, 2, 3].traverse(|_| None::<i32>), None);
+        assert_eq!(
+            vec![2, 4, 6, 8].traverse(|i| if i % 2 == 0 { vec![i] } else { vec![] }),
+            vec![vec![2, 4, 6, 8]]
+        );
+        assert_eq!(
+            vec![2, 4, 6, 7, 8].traverse(|i| if i % 2 == 0 { vec![i] } else { vec![] }),
+            Vec::<Vec<i32>>::new()
         );
     }
 

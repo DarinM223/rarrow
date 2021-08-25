@@ -147,6 +147,16 @@ mod tests {
     }
 
     #[test]
+    fn test_traverse() {
+        let opt: Option<i32> = None;
+        assert_eq!(opt.traverse(|i| Ok::<_, String>(i)), Ok(None));
+        assert_eq!(opt.traverse(|_| Err::<i32, _>("error")), Ok(None));
+
+        assert_eq!(Some(2).traverse(|i| Ok::<_, String>(i)), Ok(Some(2)));
+        assert_eq!(Some(2).traverse(|i| Err::<i32, _>(i)), Err(2));
+    }
+
+    #[test]
     fn test_alternative() {
         assert_eq!(Option::<i32>::empty(), None);
         assert_eq!(Some(2).combine_k(Some(3)), Some(2));

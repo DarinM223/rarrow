@@ -126,4 +126,28 @@ mod tests {
     fn test_semigroup() {
         assert_eq!(Semigroup::combine(Ok::<_, i32>(1), Ok(2)), Ok(1));
     }
+
+    #[test]
+    fn test_traverse() {
+        let result: Result<i32, String> = Err("Error".to_string());
+        assert_eq!(result.traverse(|i| Some(i)), Some(Err("Error".to_string())));
+        let result: Result<i32, String> = Err("Error".to_string());
+        assert_eq!(
+            result.traverse(|_| None::<i32>),
+            Some(Err("Error".to_string()))
+        );
+
+        let result: Result<i32, String> = Ok(1);
+        assert_eq!(result.traverse(|i| Some(i)), Some(Ok(1)));
+        let result: Result<i32, String> = Ok(1);
+        assert_eq!(result.traverse(|_| None::<i32>), None);
+    }
+
+    #[test]
+    fn test_bifunctor() {
+        let result: Result<i32, i32> = Ok(1);
+        assert_eq!(result.bimap(|a| a + 1, |b| b - 1), Ok(2));
+        let result: Result<i32, i32> = Err(1);
+        assert_eq!(result.bimap(|a| a + 1, |b| b - 1), Err(0));
+    }
 }

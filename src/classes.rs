@@ -70,7 +70,7 @@ where
 impl<F: Monad, T: Mirror1<Family = F>> MonadExt for T {}
 
 pub trait Traversable: Hkt1 {
-    fn traverse<App: Applicative, A, B, F: Fn(A) -> App::Member<B>>(
+    fn traverse<App: Applicative, A, B: Clone, F: Fn(A) -> App::Member<B>>(
         f: F,
         t: Self::Member<A>,
     ) -> App::Member<Self::Member<B>>;
@@ -85,6 +85,7 @@ where
         f: F,
     ) -> <AppB::Family as Hkt1>::Member<<Self::Family as Hkt1>::Member<AppB::T>>
     where
+        AppB::T: Clone,
         AppB::Family: Applicative,
     {
         <Self::Family as Traversable>::traverse::<AppB::Family, _, _, _>(
@@ -188,6 +189,7 @@ impl<F: SemigroupK, T: Mirror1<Family = F>> SemigroupKExt for T {}
 pub trait MonoidK: SemigroupK {
     fn empty<A>() -> Self::Member<A>;
 }
+
 pub trait MonoidKExt: Mirror1 + Sized
 where
     Self::Family: MonoidK,
