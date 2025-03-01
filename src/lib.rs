@@ -1,5 +1,3 @@
-#![feature(generic_associated_types)]
-
 pub mod classes;
 pub mod mirror;
 

@@ -2,7 +2,7 @@
 name = "rarrow"
 version = "0.0.1"
 authors = ["Darin Minamoto <darinm223@gmail.com>"]
-edition = "2018"
+edition = "2024"
 description = "Another category theory library in Rust"
 readme = "README.md"
 license = "BSD-3-Clause"

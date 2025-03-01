@@ -1,6 +1,6 @@
-/// Mirror method of simulating higher kinded types.
-/// This method works for Traversable but requires GATs
-/// and is more verbose and difficult to use.
+//! Mirror method of simulating higher kinded types.
+//! This method works for Traversable but requires GATs
+//! and is more verbose and difficult to use.
 
 pub trait Hkt1 {
     type Member<T>: Mirror1<T = T, Family = Self>;

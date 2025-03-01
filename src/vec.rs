@@ -76,7 +76,7 @@ impl Traversable for VecFamily {
 
 impl SemigroupK for VecFamily {
     fn combine_k<A>(fa: Vec<A>, fb: Vec<A>) -> Vec<A> {
-        fa.into_iter().chain(fb.into_iter()).collect()
+        fa.into_iter().chain(fb).collect()
     }
 }
 
@@ -90,7 +90,7 @@ impl Alternative for VecFamily {}
 
 impl<A> Semigroup for Vec<A> {
     fn combine(self, other: Vec<A>) -> Vec<A> {
-        self.into_iter().chain(other.into_iter()).collect()
+        self.into_iter().chain(other).collect()
     }
 }
 
